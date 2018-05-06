@@ -10,6 +10,7 @@ import sqlite3
 import time,datetime
 import threading
 import json
+import HTMLParser
 
 import os,os.path
 
@@ -164,13 +165,24 @@ def bbc():
             if not episodes:
                 continue
             show = show_id
+
+            match = re.search('<h1.*?>(.*?)</h1>',html)
+            if match:
+                show = HTMLParser.HTMLParser().unescape(match.group(1))
+                show = urllib.quote(show).replace("%20"," ")
+            '''
             link = episodes[0][1]
             if "series" in link:
                 link = link.replace('-',' ')
                 match = re.search('(.*?) series ([0-9]+) ([0-9]+) (.*)',link)
                 if match:
                     show = match.group(1).title()
-
+            else:
+                link = link.replace('-',' ')
+                match = re.search('(.*?) ([0-9]{8})',link)
+                if match:
+                    show = match.group(1).title()
+            '''
             show_folder = channel_folder + show + '/'
             xbmcvfs.mkdirs(show_folder)
 
@@ -195,6 +207,36 @@ def bbc():
                         f = xbmcvfs.File(show_folder+name+'.nfo','w')
                         f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><season>%s</season><episode>%s</episode><thumb>%s</thumb></episodedetails>" % (show,title,season,episode,jpg))
                         f.close()
+                else:
+                    link = link.replace('-',' ')
+                    match = re.search('(.*?) ([0-9]{8})',link)
+                    if match:
+                        show = match.group(1).title()
+                        date = match.group(2)
+                        date = "%s-%s-%s" % (date[4:8],date[2:4],date[0:2])
+                        #episode = match.group(3)
+                        #title = match.group(4).title()
+                        #log((show,season,episode,title,link))
+
+                        name = "%s %s" % (show,date)
+
+                        f = xbmcvfs.File(show_folder+name+'.strm','w')
+                        f.write("plugin://plugin.video.bbc.strms/play/%s" % id)
+                        f.close()
+
+                        f = xbmcvfs.File(show_folder+name+'.nfo','w')
+                        f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><thumb>%s</thumb><aired>%s</aired></episodedetails>" % (show,show,jpg,date))
+                        f.close()
+                    else:
+                        title = link.title()
+
+                        f = xbmcvfs.File(show_folder+title+'.strm','w')
+                        f.write("plugin://plugin.video.bbc.strms/play/%s" % id)
+                        f.close()
+
+                        f = xbmcvfs.File(show_folder+title+'.nfo','w')
+                        f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><thumb>%s</thumb><aired>%s</aired></episodedetails>" % (show,title,jpg,date))
+                        f.close()
 
             if show:
                 f = xbmcvfs.File(show_folder+'tvshow.nfo','w')
@@ -205,7 +247,7 @@ def bbc():
 
             #break #debug
 
-        #break #debug
+        break #debug
 
 
 
