@@ -84,7 +84,7 @@ def _http_request(url):
     except:
         pass
 
-        
+
 @plugin.route('/play/<id>')
 def play(id):
     url = "https://www.bbc.co.uk/iplayer/episode/%s" % id
@@ -113,19 +113,19 @@ def bbc():
         max_page = 1
         while page <= max_page:
             url = 'https://www.bbc.co.uk/tv/%s/a-z?page=%s' % (channel,page)
-            
+
             r = requests.get(url)
             html = r.content
-            with open("out.html","w") as f:
-                f.write(html)
-            
-            
+            #with open("out.html","w") as f:
+            #    f.write(html)
+
+
             shows = shows | set(re.findall('/iplayer/episodes/(.*?)"',html))
             #log(shows)
-            
+
             try:
                 pages = re.findall('href="\?page&#x3D;([0-9]+?)"',html)
-                #log(pages)    
+                #log(pages)
                 max_page = int(max(pages,key=lambda k: int(k)))
                 #log((type(max_page),max_page))
                 page += 1
@@ -133,32 +133,32 @@ def bbc():
             except:
                 break
             #break #debug
-                
+
         for show in shows:
             show_folder = folder + show + '/'
             xbmcvfs.mkdirs(show_folder)
-            
+
             #log(show)
             #show = "b01psl8r"
             url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show
-            
+
             r = requests.get(url)
             html = r.content
-            with open("episode.html","w") as f:
-                f.write(html)            
-                
+            #with open("episode.html","w") as f:
+            #    f.write(html)
+
             jpg = re.search('https://ichef\.bbci\.co\.uk/images/ic/.*?/(.*?)\.jpg',html)
             if jpg:
                 jpg = 'https://ichef.bbci.co.uk/images/ic/raw/%s.jpg' % jpg.group(1)
             #log(jpg)
-                
+
             episodes = re.findall('href="/iplayer/episode/(.*?)/(.*?)"',html)
             #log(episodes)
-            
+
             show = None
             for id,link in episodes:
 
-                
+
                 if "series" in link:
                     link = link.replace('-',' ')
                     match = re.search('(.*?) series ([0-9]+) ([0-9]+) (.*)',link)
@@ -168,33 +168,33 @@ def bbc():
                         episode = match.group(3)
                         title = match.group(4).title()
                         #log((show,season,episode,title,link))
-                        
+
                         name = "%s S%sE%s" % (show,season,episode)
-                        
+
                         f = xbmcvfs.File(show_folder+name+'.strm','w')
                         f.write("plugin://plugin.video.bbc.strms/play/%s" % id)
-                        f.close()                        
+                        f.close()
 
                         f = xbmcvfs.File(show_folder+name+'.nfo','w')
                         f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><season>%s</season><episode>%s</episode><thumb>%s</thumb></episodedetails>" % (show,title,season,episode,jpg))
                         f.close()
 
-                       
+
             f = xbmcvfs.File(show_folder+'tvshow.nfo','w')
             f.write("<tvshow><title>%s</title><thumb>%s</thumb><art><poster>%s</poster><fanart>%s</fanart><thumb>%s</thumb></art></tvshow>" % (show,jpg,jpg,jpg,jpg))
             f.close()
-                
-            
+
+
             #break #debug
-        
-        return
-        
-        
+
+        #return
+
+
 
 def ScrapeAvailableStreams(url):
     # Open page and retrieve the stream ID
     html = requests.get(url).content
-    
+
     name = None
     image = None
     description = None
@@ -238,8 +238,8 @@ def ScrapeAvailableStreams(url):
                 stream_id_st = stream['id']
 
     return {'stream_id_st': stream_id_st, 'stream_id_sl': stream_id_sl, 'stream_id_ad': stream_id_ad, 'name': name, 'image':image, 'description': description}
-        
-        
+
+
 def ParseStreams(stream_id):
     retlist = []
     # print "Parsing streams for PID: %s"%stream_id
