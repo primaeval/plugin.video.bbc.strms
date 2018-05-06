@@ -107,18 +107,26 @@ def bbc():
     folder = 'special://profile/addon_data/plugin.video.bbc.strms/TV/'
     delete(folder)
     xbmcvfs.mkdirs(folder)
-    for channel in ['cbbc','cbeebies']:
+
+    normal = ['bbcone','bbctwo','bbcfour','bbcthree']
+    tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
+    for channel in normal + tv:
+        channel_folder = folder+channel+'/'
+        xbmcvfs.mkdirs(channel_folder)
+
         shows = set()
         page = 1
         max_page = 1
         while page <= max_page:
-            url = 'https://www.bbc.co.uk/tv/%s/a-z?page=%s' % (channel,page)
+            if channel in tv:
+                url = 'https://www.bbc.co.uk/tv/%s/a-z?page=%s' % (channel,page)
+            else:
+                url = 'https://www.bbc.co.uk/%s/a-z?page=%s' % (channel,page)
 
             r = requests.get(url)
             html = r.content
             #with open("out.html","w") as f:
             #    f.write(html)
-
 
             shows = shows | set(re.findall('/iplayer/episodes/(.*?)"',html))
             #log(shows)
@@ -134,13 +142,12 @@ def bbc():
                 break
             #break #debug
 
-        for show in shows:
-            show_folder = folder + show + '/'
-            xbmcvfs.mkdirs(show_folder)
+        for show_id in shows:
 
-            #log(show)
-            #show = "b01psl8r"
-            url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show
+
+            #log(show_id)
+            #show_id = "b01psl8r"
+            url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show_id
 
             r = requests.get(url)
             html = r.content
@@ -154,11 +161,21 @@ def bbc():
 
             episodes = re.findall('href="/iplayer/episode/(.*?)/(.*?)"',html)
             #log(episodes)
+            if not episodes:
+                continue
+            show = show_id
+            link = episodes[0][1]
+            if "series" in link:
+                link = link.replace('-',' ')
+                match = re.search('(.*?) series ([0-9]+) ([0-9]+) (.*)',link)
+                if match:
+                    show = match.group(1).title()
+
+            show_folder = channel_folder + show + '/'
+            xbmcvfs.mkdirs(show_folder)
 
             show = None
             for id,link in episodes:
-
-
                 if "series" in link:
                     link = link.replace('-',' ')
                     match = re.search('(.*?) series ([0-9]+) ([0-9]+) (.*)',link)
@@ -179,15 +196,16 @@ def bbc():
                         f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><season>%s</season><episode>%s</episode><thumb>%s</thumb></episodedetails>" % (show,title,season,episode,jpg))
                         f.close()
 
+            if show:
+                f = xbmcvfs.File(show_folder+'tvshow.nfo','w')
+                f.write("<tvshow><title>%s</title><thumb>%s</thumb><art><poster>%s</poster><fanart>%s</fanart><thumb>%s</thumb></art></tvshow>" % (show,jpg,jpg,jpg,jpg))
+                f.close()
 
-            f = xbmcvfs.File(show_folder+'tvshow.nfo','w')
-            f.write("<tvshow><title>%s</title><thumb>%s</thumb><art><poster>%s</poster><fanart>%s</fanart><thumb>%s</thumb></art></tvshow>" % (show,jpg,jpg,jpg,jpg))
-            f.close()
 
 
             #break #debug
 
-        #return
+        #break #debug
 
 
 
