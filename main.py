@@ -143,17 +143,20 @@ def bbc():
                 break
             #break #debug
 
-        for show_id in shows:
+        #for show_id shows:
+        for show_id in ["b08t12cy","b08vp21p","b006m86d","b00dtjbv"]:
 
 
             #log(show_id)
-            #show_id = "b01psl8r"
+            #show_id = "b00dtjbv" #DEBUG
+
+
             url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show_id
 
             r = requests.get(url)
             html = r.content
-            #with open("episode.html","w") as f:
-            #    f.write(html)
+            with open("episode.html","w") as f:
+                f.write(html)
 
             jpg = re.search('https://ichef\.bbci\.co\.uk/images/ic/.*?/(.*?)\.jpg',html)
             if jpg:
@@ -164,27 +167,118 @@ def bbc():
             #log(episodes)
             if not episodes:
                 continue
-            show = show_id
 
+            show = show_id
             match = re.search('<h1.*?>(.*?)</h1>',html)
             if match:
                 show = HTMLParser.HTMLParser().unescape(match.group(1))
                 show = urllib.quote(show).replace("%20"," ")
-            '''
-            link = episodes[0][1]
-            if "series" in link:
-                link = link.replace('-',' ')
-                match = re.search('(.*?) series ([0-9]+) ([0-9]+) (.*)',link)
-                if match:
-                    show = match.group(1).title()
-            else:
-                link = link.replace('-',' ')
-                match = re.search('(.*?) ([0-9]{8})',link)
-                if match:
-                    show = match.group(1).title()
-            '''
-            show_folder = channel_folder + show + '/'
+            log(show)
+
+            show_folder = channel_folder + show_id + '/'
             xbmcvfs.mkdirs(show_folder)
+
+
+            list__grid__items = html.split('list__grid__item')
+
+            num = 1000
+            for list__grid__item in list__grid__items[1:]:
+
+                id = None
+
+                match = re.search('/iplayer/episode/(.*?)/(.*?)"',list__grid__item)
+                if match:
+                    id = match.group(1)
+                    link = match.group(2)
+                    log((id,link))
+                else:
+                    continue
+
+                match = re.search('ichef.bbci.co.uk/images/ic/.*?/(.*?).jpg',list__grid__item)
+                if match:
+                    jpg = 'https://ichef.bbci.co.uk/images/ic/512x512/%s.jpg' % match.group(1)
+                    log(jpg)
+
+                match = re.search('aria-label="(.*?)"',list__grid__item)
+                if match:
+                    label =  HTMLParser.HTMLParser().unescape(match.group(1))
+                    log(label)
+                    title,description = label.split(" Description: ")
+                    log((title,description))
+                    #filename = urllib.quote(title).replace("%20"," ")
+                    log(title)
+
+                    season = None
+                    episode = None
+                    date = None
+
+                    match = re.search('Series ([0-9]+): Episode ([0-9]+)\.',title)
+                    if match:
+                        season = match.group(1)
+                        episode = match.group(2)
+                        log((season,episode))
+
+                    else:
+                        match = re.search('([0-9]{2})/([0-9]{2})/([0-9]{4})\.',title)
+                        if match:
+                            day = match.group(1)
+                            month = match.group(2)
+                            year = match.group(3)
+                            log((day,month,year))
+                            date = "%s-%s-%s" % (year,month,day)
+                        else:
+                            match = re.search('([0-9]+)\.',title)
+                            if match:
+                                episode = match.group(1)
+                                season = 1
+                                log((episode))
+                            else:
+                                episode = num
+                                num += 1
+                                season = 1000
+
+                    if date:
+                        filename = "%s" % (date)
+                    else:
+                        filename = "S%sE%s" % (season,episode)
+                    log(("XXX",filename))
+
+                    #filename = urllib.quote(filename.encode('utf8')).replace("%20"," ")
+
+                    f = xbmcvfs.File(show_folder+filename+'.strm','w')
+                    f.write("plugin://plugin.video.bbc.strms/play/%s" % id)
+                    f.close()
+
+
+                    log((show,title,jpg))
+                    f = xbmcvfs.File(show_folder+filename+'.nfo','w')
+                    if not date:
+                        xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+                        <episodedetails>
+                        <showtitle>%s</showtitle>
+                        <title>%s</title>
+                        <season>%s</season>
+                        <episode>%s</episode>
+                        <thumb>%s</thumb>
+                        </episodedetails>""" % (show,title,season,episode,jpg)
+                    else:
+                        xml = "<episodedetails><showtitle>%s</showtitle><title>%s</title><aired>%s</aired><thumb>%s</thumb></episodedetails>" % (show,title,date,jpg)
+
+                    f.write(xml.encode("utf8"))
+                    f.close()
+
+            if show:
+                f = xbmcvfs.File(show_folder+'tvshow.nfo','w')
+                f.write("""
+                <tvshow>
+                <showtitle>%s</showtitle>
+                <title>%s</title>
+                <thumb>%s</thumb>
+                </tvshow>""" % (show,show,jpg))
+                f.close()
+
+            #break
+            continue
 
             show = None
             for id,link in episodes:
@@ -225,10 +319,10 @@ def bbc():
                         f.close()
 
                         f = xbmcvfs.File(show_folder+name+'.nfo','w')
-                        f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><thumb>%s</thumb><aired>%s</aired></episodedetails>" % (show,show,jpg,date))
+                        f.write("<episodedetails><showtitle>%s</showtitle><title>%s</title><thumb>%s</thumb><aired>%s</aired></episodedetails>" % (show,name,jpg,date))
                         f.close()
                     else:
-                        title = link.title()
+                        title = "%s 1970-01-01" % link.title()
 
                         f = xbmcvfs.File(show_folder+title+'.strm','w')
                         f.write("plugin://plugin.video.bbc.strms/play/%s" % id)
@@ -245,9 +339,13 @@ def bbc():
 
 
 
-            #break #debug
+            break #debug
 
         break #debug
+
+    xbmc.executebuiltin('UpdateLibrary(video)')
+    xbmc.executebuiltin('CleanLibrary(video)')
+    xbmc.executebuiltin('ActivateWindow(videos)')
 
 
 
