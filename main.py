@@ -90,9 +90,7 @@ def _http_request(url):
 @plugin.route('/play/<id>')
 def play(id):
     url = "https://www.bbc.co.uk/iplayer/episode/%s" % id
-    #log(url)
     streams = ScrapeAvailableStreams(url)
-    #log(streams)
     stream = streams.get("stream_id_st")
     if stream:
         url = ParseStreams(stream)
@@ -118,12 +116,14 @@ def choose_channels():
 @plugin.route('/bbc')
 def bbc():
     channels = plugin.get_storage("channels")
+
     servicing = 'special://profile/addon_data/plugin.video.bbc.strms/servicing'
-    #if xbmcvfs.exists(servicing):
-    #    return
+    if xbmcvfs.exists(servicing):
+        return
     f = xbmcvfs.File(servicing,'wb')
-    #f.write('')
+    f.write('')
     f.close()
+
     folder = 'special://profile/addon_data/plugin.video.bbc.strms/TV/'
     delete(folder)
     xbmcvfs.mkdirs(folder)
@@ -131,7 +131,7 @@ def bbc():
     normal = ['bbcone','bbctwo','bbcfour','bbcthree']
     tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
     for channel in normal + tv:
-    #for channel in ["cbeebies"]:
+    #for channel in ["cbeebies"]: #DEBUG
 
         if channel not in channels:
             continue
@@ -154,41 +154,31 @@ def bbc():
             #    f.write(html)
 
             shows = shows | set(re.findall('/iplayer/episodes/(.*?)"',html))
-            #log(shows)
 
             try:
                 pages = re.findall('href="\?page&#x3D;([0-9]+?)"',html)
-                #log(pages)
                 max_page = int(max(pages,key=lambda k: int(k)))
-                #log((type(max_page),max_page))
                 page += 1
-                #log((max_page,page))
             except:
                 break
-            break #debug
+            #break #DEBUG
 
         for show_id in shows:
-        #for show_id in ["b08t12cy","b08vp21p","b006m86d","b00dtjbv"]:
-
-
-            #log(show_id)
+        #for show_id in ["b08t12cy","b08vp21p","b006m86d","b00dtjbv"]: #DEBUG
             #show_id = "b00dtjbv" #DEBUG
-
 
             url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show_id
 
             r = requests.get(url)
             html = r.content
-            with open("episode.html","w") as f:
-                f.write(html)
+            #with open("episode.html","w") as f:
+            #    f.write(html)
 
             jpg = re.search('https://ichef\.bbci\.co\.uk/images/ic/.*?/(.*?)\.jpg',html)
             if jpg:
                 jpg = 'https://ichef.bbci.co.uk/images/ic/raw/%s.jpg' % jpg.group(1)
-            #log(jpg)
 
             episodes = re.findall('href="/iplayer/episode/(.*?)/(.*?)"',html)
-            #log(episodes)
             if not episodes:
                 continue
 
@@ -196,9 +186,6 @@ def bbc():
             match = re.search('<h1.*?>(.*?)</h1>',html)
             if match:
                 show = match.group(1)
-                #show = HTMLParser.HTMLParser().unescape(match.group(1))
-                #show = urllib.quote(show).replace("%20"," ")
-            #log(show)
 
             show_folder = channel_folder + show_id + '/'
             xbmcvfs.mkdirs(show_folder)
@@ -219,7 +206,6 @@ def bbc():
                 if match:
                     id = match.group(1)
                     link = match.group(2)
-                    #log((id,link))
                 else:
                     continue
 
@@ -227,16 +213,11 @@ def bbc():
                 if match:
                     square_jpg = 'https://ichef.bbci.co.uk/images/ic/512x512/%s.jpg' % match.group(1)
                     jpg = 'https://ichef.bbci.co.uk/images/ic/512xn/%s.jpg' % match.group(1)
-                    #log(jpg)
 
                 match = re.search('aria-label="(.*?)"',list__grid__item)
                 if match:
                     label =  HTMLParser.HTMLParser().unescape(match.group(1))
-                    #log(label)
                     title,description = label.split(" Description: ")
-                    #log((title,description))
-                    #filename = urllib.quote(title).replace("%20"," ")
-                    #log(title)
 
                     season = None
                     episode = None
@@ -246,22 +227,18 @@ def bbc():
                     if match:
                         season = match.group(1)
                         episode = match.group(2)
-                        #log((season,episode))
-
                     else:
                         match = re.search('([0-9]{2})/([0-9]{2})/([0-9]{4})\.',title)
                         if match:
                             day = match.group(1)
                             month = match.group(2)
                             year = match.group(3)
-                            #log((day,month,year))
                             date = "%s-%s-%s" % (year,month,day)
                         else:
                             match = re.search('([0-9]+)\.',title)
                             if match:
                                 episode = match.group(1)
                                 season = 1
-                                #log((episode))
                             else:
                                 episode = num
                                 num += 1
@@ -271,16 +248,11 @@ def bbc():
                         filename = "%s" % (date)
                     else:
                         filename = "S%sE%s" % (season,episode)
-                    #log(("XXX",filename))
-
-                    #filename = urllib.quote(filename.encode('utf8')).replace("%20"," ")
 
                     f = xbmcvfs.File(show_folder+filename+'.strm','w')
                     f.write("plugin://plugin.video.bbc.strms/play/%s" % id)
                     f.close()
 
-
-                    #log((show,title,jpg))
                     f = xbmcvfs.File(show_folder+filename+'.nfo','w')
                     if not date:
                         xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
@@ -318,16 +290,16 @@ def bbc():
                 f.write(xml.encode("utf8"))
                 f.close()
 
-            break
-            continue
+            #break #DEBUG
+            #continue #DEBUG
 
 
-        break #debug
+        #break #DEBUG
 
     xbmc.executebuiltin('UpdateLibrary(video)')
     xbmc.executebuiltin('CleanLibrary(video)')
-    xbmc.executebuiltin('ActivateWindow(10025,library://video/tvshows/titles.xml,return)')
-
+    #xbmc.executebuiltin('ActivateWindow(10025,library://video/tvshows/titles.xml,return)')
+    xbmcvfs.delete(servicing)
 
 
 def ScrapeAvailableStreams(url):
@@ -510,7 +482,7 @@ def index():
     })
     items.append(
     {
-        'label': "Make BBC strms in addon_data folder",
+        'label': "Service",
         'path': plugin.url_for('bbc'),
         'thumbnail':get_icon_path('settings'),
         'context_menu': context_items,
@@ -518,7 +490,7 @@ def index():
 
     items.append(
     {
-        'label': "TV",
+        'label': "BBC TV",
         'path': 'special://profile/addon_data/plugin.video.bbc.strms/TV/',
         'thumbnail':get_icon_path('tv'),
         'context_menu': context_items,

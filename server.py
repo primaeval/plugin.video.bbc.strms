@@ -18,6 +18,8 @@ def Service():
 
 if __name__ == '__main__':
     ADDON = xbmcaddon.Addon('plugin.video.bbc.strms')
+    
+    xbmcvfs.delete('special://profile/addon_data/plugin.video.bbc.strms/servicing')
 
     try:
         if ADDON.getSetting('service') == 'true':
