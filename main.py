@@ -98,8 +98,26 @@ def play(id):
         url = ParseStreams(stream)
         plugin.set_resolved_url(url)
 
+@plugin.route('/choose_channels')
+def choose_channels():
+    channels = plugin.get_storage("channels")
+    d = xbmcgui.Dialog()
+
+    normal = ['bbcone','bbctwo','bbcfour','bbcthree']
+    tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
+    labels = normal + tv
+
+    selected = d.multiselect("Channels",labels)
+    if selected:
+        channels.clear()
+        for i in selected:
+            label = labels[i]
+            channels[label] = True
+    channels.sync()
+
 @plugin.route('/bbc')
 def bbc():
+    channels = plugin.get_storage("channels")
     servicing = 'special://profile/addon_data/plugin.video.bbc.strms/servicing'
     #if xbmcvfs.exists(servicing):
     #    return
@@ -112,8 +130,12 @@ def bbc():
 
     normal = ['bbcone','bbctwo','bbcfour','bbcthree']
     tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
-    #for channel in normal + tv:
-    for channel in ["cbeebies"]:
+    for channel in normal + tv:
+    #for channel in ["cbeebies"]:
+
+        if channel not in channels:
+            continue
+
         channel_folder = folder+channel+'/'
         xbmcvfs.mkdirs(channel_folder)
 
@@ -479,6 +501,13 @@ def index():
     items = []
     context_items = []
 
+    items.append(
+    {
+        'label': "Choose Channels",
+        'path': plugin.url_for('choose_channels'),
+        'thumbnail':get_icon_path('settings'),
+        'context_menu': context_items,
+    })
     items.append(
     {
         'label': "Make BBC strms in addon_data folder",
