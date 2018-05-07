@@ -22,6 +22,7 @@ from collections import namedtuple
 plugin = Plugin()
 big_list_view = False
 
+labels = {'bbcnews': 'BBC News','bbcparliament': 'BBC Parliament','cbbc':'CBBC','cbeebies':'CBeeBies','bbcone':"BBC One",'bbctwo':'BBC Two', 'bbcthree':'BBC Three', 'bbcfour':'BBC Four'}
 tv = ['bbcnews','bbcparliament','cbbc','cbeebies'] #/tv/bbcnews
 normal = ['bbcone','bbctwo','bbcfour','bbcthree']
 
@@ -223,7 +224,12 @@ def browse_channel(channel):
                 title = match.group(1)
             else:
                 continue
-            shows.add((title,id))
+
+            jpg = re.search('https://ichef\.bbci\.co\.uk/images/ic/.*?/(.*?)\.jpg',list_item__programme)
+            if jpg:
+                jpg = 'https://ichef.bbci.co.uk/images/ic/512xn/%s.jpg' % jpg.group(1)
+
+            shows.add((title,id,jpg))
 
         try:
             pages = re.findall('href="\?page&#x3D;([0-9]+?)"',html)
@@ -234,13 +240,14 @@ def browse_channel(channel):
         #break #DEBUG
 
     items = []
-    for title,id in shows:
+    for title,id,jpg in shows:
         context_items = []
         context_items.append(("Subscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_show, show=id))))
         context_items.append(("Unsubscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(unsubscribe_show, show=id))))
         items.append({
         'label': HTMLParser.HTMLParser().unescape(title),
         'path': plugin.url_for('browse_show',channel=channel,show=id),
+        'thumbnail': jpg,
         'context_menu': context_items,
         })
     return sorted(items, key=lambda k: k["label"].lower())
@@ -283,7 +290,7 @@ def browse_channels():
         context_items.append(("Subscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_channel, channel=channel, all=False))))
         context_items.append(("Unsubscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(unsubscribe_channel, channel=channel))))
         items.append({
-        'label': channel,
+        'label': labels[channel],
         'path': plugin.url_for('browse_channel',channel=channel),
         'context_menu': context_items,
         })
