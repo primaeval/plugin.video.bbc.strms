@@ -112,7 +112,8 @@ def bbc():
 
     normal = ['bbcone','bbctwo','bbcfour','bbcthree']
     tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
-    for channel in normal + tv:
+    #for channel in normal + tv:
+    for channel in ["cbeebies"]:
         channel_folder = folder+channel+'/'
         xbmcvfs.mkdirs(channel_folder)
 
@@ -142,10 +143,10 @@ def bbc():
                 #log((max_page,page))
             except:
                 break
-            #break #debug
+            break #debug
 
-        #for show_id in shows:
-        for show_id in ["b08t12cy","b08vp21p","b006m86d","b00dtjbv"]:
+        for show_id in shows:
+        #for show_id in ["b08t12cy","b08vp21p","b006m86d","b00dtjbv"]:
 
 
             #log(show_id)
@@ -180,6 +181,10 @@ def bbc():
             show_folder = channel_folder + show_id + '/'
             xbmcvfs.mkdirs(show_folder)
 
+            show_description = None
+            match = re.search('<p.*?hero-header__subtitle.*?>(.*?)</p>',html)
+            if match:
+                show_description = match.group(1)
 
             list__grid__items = html.split('list__grid__item')
 
@@ -271,8 +276,9 @@ def bbc():
                         <showtitle>%s</showtitle>
                         <title>%s</title>
                         <aired>%s</aired>
+                        <plot>%s</plot>
                         <thumb>%s</thumb>
-                        </episodedetails>""" % (show,title,date,jpg)
+                        </episodedetails>""" % (show,title,date,description,jpg)
                     xml = textwrap.dedent(xml)
                     f.write(xml.encode("utf8"))
                     f.close()
@@ -283,13 +289,14 @@ def bbc():
                 <tvshow>
                 <showtitle>%s</showtitle>
                 <title>%s</title>
+                <plot>%s</plot>
                 <thumb>%s</thumb>
-                </tvshow>""" % (show,show,jpg)
+                </tvshow>""" % (show,show,show_description,jpg)
                 xml = textwrap.dedent(xml)
                 f.write(xml.encode("utf8"))
                 f.close()
 
-            #break
+            break
             continue
 
 
@@ -479,21 +486,21 @@ def index():
         'thumbnail':get_icon_path('settings'),
         'context_menu': context_items,
     })
-    
+
     items.append(
     {
         'label': "TV",
         'path': 'special://profile/addon_data/plugin.video.bbc.strms/TV/',
         'thumbnail':get_icon_path('tv'),
         'context_menu': context_items,
-    })    
+    })
     items.append(
     {
         'label': "TV Shows",
         'path': 'library://video/tvshows/titles.xml/',
         'thumbnail':get_icon_path('tv'),
         'context_menu': context_items,
-    })  
+    })
     return items
 
 if __name__ == '__main__':
