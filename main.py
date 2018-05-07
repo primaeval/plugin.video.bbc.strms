@@ -677,7 +677,7 @@ def index():
     items.append(
     {
         'label': "Service",
-        'path': plugin.url_for('bbc'),
+        'path': plugin.url_for('service'),
         'thumbnail':get_icon_path('settings'),
         'context_menu': context_items,
     })
