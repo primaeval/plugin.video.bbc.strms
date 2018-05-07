@@ -151,9 +151,6 @@ def browse_show(channel,show):
     if match:
         show = match.group(1)
 
-    #show_folder = channel_folder + show_id + '/'
-    #xbmcvfs.mkdirs(show_folder)
-
     show_description = None
     match = re.search('<p.*?hero-header__subtitle.*?>(.*?)</p>',html)
     if match:
@@ -187,16 +184,13 @@ def browse_show(channel,show):
             title = link
             continue #MAYBE
 
-
-
         items.append({
             'label' : title,
             'path' : plugin.url_for('play_video',id=id),
-            #'is_playable': True,
-            #'info_type': 'video',
             'thumbnail': jpg
         })
     return sorted(items, key=lambda k: k["label"].lower())
+
 
 @plugin.route('/browse_channel/<channel>')
 def browse_channel(channel):
@@ -231,17 +225,13 @@ def browse_channel(channel):
                 continue
             shows.add((title,id))
 
-
-        #shows = shows | set(re.findall('list-item__title.*?>(.*?)<.*?/iplayer/episodes/(.*?)"',html,flags=(re.DOTALL|re.MULTILINE)))
-
         try:
             pages = re.findall('href="\?page&#x3D;([0-9]+?)"',html)
             max_page = int(max(pages,key=lambda k: int(k)))
             page += 1
         except:
             break
-        break #DEBUG
-
+        #break #DEBUG
 
     items = []
     for title,id in shows:
@@ -255,10 +245,12 @@ def browse_channel(channel):
         })
     return sorted(items, key=lambda k: k["label"].lower())
 
+
 @plugin.route('/subscribe_show/<show>')
 def subscribe_show(show):
     subscribed_shows = plugin.get_storage('subscribed_shows')
     subscribed_shows[show] = show
+
 
 @plugin.route('/unsubscribe_show/<show>')
 def unsubscribe_show(show):
@@ -266,16 +258,19 @@ def unsubscribe_show(show):
     if show in subscribe_shows:
         del subscribed_shows[show]
 
+
 @plugin.route('/subscribe_channel/<channel>/<all>')
 def subscribe_channel(channel,all=False):
     subscribed_channels = plugin.get_storage('subscribed_channels')
     subscribed_channels[channel] = all
+
 
 @plugin.route('/unsubscribe_channel/<channel>')
 def unsubscribe_channel(channel):
     subscribed_channels = plugin.get_storage('subscribed_channels')
     if channel in subscribed_channels:
         del subscribed_channels[channel]
+
 
 @plugin.route('/browse_channels')
 def browse_channels():
@@ -293,6 +288,7 @@ def browse_channels():
         'context_menu': context_items,
         })
     return items
+
 
 @plugin.route('/bbc')
 def bbc():
@@ -662,16 +658,6 @@ def ParseStreams(stream_id):
 def index():
     items = []
     context_items = []
-
-    '''
-    items.append(
-    {
-        'label': "Choose Channels",
-        'path': plugin.url_for('choose_channels'),
-        'thumbnail':get_icon_path('settings'),
-        'context_menu': context_items,
-    })
-    '''
 
     items.append(
     {
