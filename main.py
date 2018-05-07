@@ -22,6 +22,8 @@ from collections import namedtuple
 plugin = Plugin()
 big_list_view = False
 
+tv = ['bbcnews','bbcparliament','cbbc','cbeebies'] #/tv/bbcnews
+normal = ['bbcone','bbctwo','bbcfour','bbcthree']
 
 
 def addon_id():
@@ -86,7 +88,6 @@ def _http_request(url):
     except:
         pass
 
-
 @plugin.route('/play/<id>')
 def play(id):
     url = "https://www.bbc.co.uk/iplayer/episode/%s" % id
@@ -95,6 +96,18 @@ def play(id):
     if stream:
         url = ParseStreams(stream)
         plugin.set_resolved_url(url)
+
+
+@plugin.route('/play_video/<id>')
+def play_video(id):
+    url = "https://www.bbc.co.uk/iplayer/episode/%s" % id
+    streams = ScrapeAvailableStreams(url)
+    stream = streams.get("stream_id_st")
+    if stream:
+        url = ParseStreams(stream)
+        #TODO label
+        plugin.play_video({'label':id,'path':url})
+
 
 @plugin.route('/choose_channels')
 def choose_channels():
@@ -113,13 +126,182 @@ def choose_channels():
             channels[label] = True
     channels.sync()
 
+
+@plugin.route('/browse_show/<channel>/<show>')
+def browse_show(channel,show):
+    show_id = show
+
+    url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show_id
+
+    r = requests.get(url)
+    html = r.content
+    #with open("episode.html","w") as f:
+    #    f.write(html)
+
+    jpg = re.search('https://ichef\.bbci\.co\.uk/images/ic/.*?/(.*?)\.jpg',html)
+    if jpg:
+        jpg = 'https://ichef.bbci.co.uk/images/ic/raw/%s.jpg' % jpg.group(1)
+
+    episodes = re.findall('href="/iplayer/episode/(.*?)/(.*?)"',html)
+    if not episodes:
+        return
+
+    show = show_id
+    match = re.search('<h1.*?>(.*?)</h1>',html)
+    if match:
+        show = match.group(1)
+
+    #show_folder = channel_folder + show_id + '/'
+    #xbmcvfs.mkdirs(show_folder)
+
+    show_description = None
+    match = re.search('<p.*?hero-header__subtitle.*?>(.*?)</p>',html)
+    if match:
+        show_description = match.group(1)
+
+    list__grid__items = html.split('list__grid__item')
+
+    items = []
+    num = 1000
+    for list__grid__item in list__grid__items[1:]:
+
+        id = None
+
+        match = re.search('/iplayer/episode/(.*?)/(.*?)"',list__grid__item)
+        if match:
+            id = match.group(1)
+            link = match.group(2)
+        else:
+            continue
+
+        match = re.search('ichef.bbci.co.uk/images/ic/.*?/(.*?).jpg',list__grid__item)
+        if match:
+            square_jpg = 'https://ichef.bbci.co.uk/images/ic/512x512/%s.jpg' % match.group(1)
+            jpg = 'https://ichef.bbci.co.uk/images/ic/512xn/%s.jpg' % match.group(1)
+
+        match = re.search('aria-label="(.*?)"',list__grid__item)
+        if match:
+            label =  HTMLParser.HTMLParser().unescape(match.group(1))
+            title,description = label.split(" Description: ")
+        else:
+            title = link
+            continue #MAYBE
+
+
+
+        items.append({
+            'label' : title,
+            'path' : plugin.url_for('play_video',id=id),
+            #'is_playable': True,
+            #'info_type': 'video',
+            'thumbnail': jpg
+        })
+    return sorted(items, key=lambda k: k["label"].lower())
+
+@plugin.route('/browse_channel/<channel>')
+def browse_channel(channel):
+    subscribed_shows = plugin.get_storage('subscribed_shows')
+
+    shows = set()
+    page = 1
+    max_page = 1
+    while page <= max_page:
+        if channel in tv:
+            url = 'https://www.bbc.co.uk/tv/%s/a-z?page=%s' % (channel,page)
+        else:
+            url = 'https://www.bbc.co.uk/%s/a-z?page=%s' % (channel,page)
+
+        r = requests.get(url)
+        html = r.content
+        #with open("out.html","w") as f:
+        #    f.write(html)
+
+
+        list_item__programmes = html.split('list-item--programme')
+        for list_item__programme in list_item__programmes[1:]:
+            match = re.search('/iplayer/episodes/(.*?)"',list_item__programme)
+            if match:
+                id = match.group(1)
+            else:
+                continue
+            match = re.search('list-item__title.*?>(.*?)<',list_item__programme)
+            if match:
+                title = match.group(1)
+            else:
+                continue
+            shows.add((title,id))
+
+
+        #shows = shows | set(re.findall('list-item__title.*?>(.*?)<.*?/iplayer/episodes/(.*?)"',html,flags=(re.DOTALL|re.MULTILINE)))
+
+        try:
+            pages = re.findall('href="\?page&#x3D;([0-9]+?)"',html)
+            max_page = int(max(pages,key=lambda k: int(k)))
+            page += 1
+        except:
+            break
+        break #DEBUG
+
+
+    items = []
+    for title,id in shows:
+        context_items = []
+        context_items.append(("Subscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_show, show=id))))
+        context_items.append(("Unsubscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(unsubscribe_show, show=id))))
+        items.append({
+        'label': HTMLParser.HTMLParser().unescape(title),
+        'path': plugin.url_for('browse_show',channel=channel,show=id),
+        'context_menu': context_items,
+        })
+    return sorted(items, key=lambda k: k["label"].lower())
+
+@plugin.route('/subscribe_show/<show>')
+def subscribe_show(show):
+    subscribed_shows = plugin.get_storage('subscribed_shows')
+    subscribed_shows[show] = show
+
+@plugin.route('/unsubscribe_show/<show>')
+def unsubscribe_show(show):
+    subscribed_shows = plugin.get_storage('subscribed_shows')
+    if show in subscribe_shows:
+        del subscribed_shows[show]
+
+@plugin.route('/subscribe_channel/<channel>/<all>')
+def subscribe_channel(channel,all=False):
+    subscribed_channels = plugin.get_storage('subscribed_channels')
+    subscribed_channels[channel] = all
+
+@plugin.route('/unsubscribe_channel/<channel>')
+def unsubscribe_channel(channel):
+    subscribed_channels = plugin.get_storage('subscribed_channels')
+    if channel in subscribed_channels:
+        del subscribed_channels[channel]
+
+@plugin.route('/browse_channels')
+def browse_channels():
+    items = []
+    normal = ['bbcone','bbctwo','bbcfour','bbcthree']
+    tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
+    for channel in normal + tv:
+        context_items = []
+        context_items.append(("Subscribe All Shows", 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_channel, channel=channel, all=True))))
+        context_items.append(("Subscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_channel, channel=channel, all=False))))
+        context_items.append(("Unsubscribe", 'XBMC.RunPlugin(%s)' % (plugin.url_for(unsubscribe_channel, channel=channel))))
+        items.append({
+        'label': channel,
+        'path': plugin.url_for('browse_channel',channel=channel),
+        'context_menu': context_items,
+        })
+    return items
+
 @plugin.route('/bbc')
 def bbc():
-    channels = plugin.get_storage("channels")
+    subscribed_channels = plugin.get_storage("subscribed_channels")
+    subscribed_shows = plugin.get_storage('subscribed_shows')
 
     servicing = 'special://profile/addon_data/plugin.video.bbc.strms/servicing'
-    if xbmcvfs.exists(servicing):
-        return
+    #if xbmcvfs.exists(servicing):
+    #    return
     f = xbmcvfs.File(servicing,'wb')
     f.write('')
     f.close()
@@ -128,13 +310,13 @@ def bbc():
     delete(folder)
     xbmcvfs.mkdirs(folder)
 
-    normal = ['bbcone','bbctwo','bbcfour','bbcthree']
-    tv = ['bbcnews','bbcparliament','cbbc','cbeebies']
+
     for channel in normal + tv:
     #for channel in ["cbeebies"]: #DEBUG
 
-        if channel not in channels:
+        if channel not in subscribed_channels:
             continue
+        all_shows = subscribed_channels[channel]
 
         channel_folder = folder+channel+'/'
         xbmcvfs.mkdirs(channel_folder)
@@ -166,6 +348,10 @@ def bbc():
         for show_id in shows:
         #for show_id in ["b08t12cy","b08vp21p","b006m86d","b00dtjbv"]: #DEBUG
             #show_id = "b00dtjbv" #DEBUG
+
+            if all_shows == 'False':
+                if show_id not in subscribed_shows:
+                    continue
 
             url = 'https://www.bbc.co.uk/iplayer/episodes/%s' % show_id
 
@@ -217,7 +403,11 @@ def bbc():
                 match = re.search('aria-label="(.*?)"',list__grid__item)
                 if match:
                     label =  HTMLParser.HTMLParser().unescape(match.group(1))
-                    title,description = label.split(" Description: ")
+
+                    try:
+                        title,description = label.split(" Description: ")
+                    except:
+                        continue
 
                     season = None
                     episode = None
@@ -473,6 +663,7 @@ def index():
     items = []
     context_items = []
 
+    '''
     items.append(
     {
         'label': "Choose Channels",
@@ -480,6 +671,16 @@ def index():
         'thumbnail':get_icon_path('settings'),
         'context_menu': context_items,
     })
+    '''
+
+    items.append(
+    {
+        'label': "Channels",
+        'path': plugin.url_for('browse_channels'),
+        'thumbnail':get_icon_path('settings'),
+        'context_menu': context_items,
+    })
+
     items.append(
     {
         'label': "Service",
@@ -490,14 +691,14 @@ def index():
 
     items.append(
     {
-        'label': "BBC TV",
+        'label': "Subscribed strms",
         'path': 'special://profile/addon_data/plugin.video.bbc.strms/TV/',
         'thumbnail':get_icon_path('tv'),
         'context_menu': context_items,
     })
     items.append(
     {
-        'label': "TV Shows",
+        'label': "Library TV Shows",
         'path': 'library://video/tvshows/titles.xml/',
         'thumbnail':get_icon_path('tv'),
         'context_menu': context_items,
