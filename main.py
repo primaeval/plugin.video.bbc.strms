@@ -23,8 +23,8 @@ plugin = Plugin()
 big_list_view = False
 
 labels = {'bbcnews': 'BBC News','bbcparliament': 'BBC Parliament','cbbc':'CBBC','cbeebies':'CBeeBies','bbcone':"BBC One",'bbctwo':'BBC Two', 'bbcthree':'BBC Three', 'bbcfour':'BBC Four'}
-tv = ['bbcnews','bbcparliament','cbbc','cbeebies'] #/tv/bbcnews
-normal = ['bbcone','bbctwo','bbcfour','bbcthree']
+tv = ['bbcnews','bbcparliament','cbbc','cbeebies','bbcthree'] #/tv/bbcnews
+normal = ['bbcone','bbctwo','bbcfour']
 
 
 def addon_id():
