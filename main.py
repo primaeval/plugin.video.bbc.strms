@@ -489,8 +489,8 @@ def bbc():
 
         #break #DEBUG
 
-    xbmc.executebuiltin('UpdateLibrary(video)')
-    xbmc.executebuiltin('CleanLibrary(video)')
+    #xbmc.executebuiltin('UpdateLibrary(video)')
+    #xbmc.executebuiltin('CleanLibrary(video)')
     #xbmc.executebuiltin('ActivateWindow(10025,library://video/tvshows/titles.xml,return)')
     xbmcvfs.delete(servicing)
 
