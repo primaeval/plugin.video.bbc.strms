@@ -471,6 +471,7 @@ def bbc():
                     f.close()
 
             if show:
+                xbmcvfs.copy(jpg,show_folder+'poster.jpg')
                 f = xbmcvfs.File(show_folder+'tvshow.nfo','w')
                 xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
                 <tvshow>
